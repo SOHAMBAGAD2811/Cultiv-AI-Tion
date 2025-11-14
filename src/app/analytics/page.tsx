@@ -254,6 +254,39 @@ export default function AnalyticsPage() {
   const totalExpenses = useMemo(() => expenses.reduce((sum, exp) => sum + exp.amount, 0), [expenses]);
   const netProfit = useMemo(() => totalRevenue - totalExpenses, [totalRevenue, totalExpenses]);
 
+  const getGroupKey = (date: string, range: string) => {
+    if (range === 'this_month' || range === 'last_month') {
+      return date; // Group by day (YYYY-MM-DD)
+    }
+    return date.substring(0, 7); // Group by month (YYYY-MM)
+  };
+
+  const chartTitle = useMemo(() => {
+    switch (timeRange) {
+      case 'all':
+        return 'All Time Performance';
+      case 'this_month':
+        return "This Month's Performance";
+      case 'last_month':
+        return "Last Month's Performance";
+      case 'current_quarter':
+        return 'Current Quarter Performance';
+      case 'last_quarter':
+        return 'Last Quarter Performance';
+      case 'current_fy':
+        return 'Current Financial Year Performance';
+      default:
+        return 'Monthly Performance';
+    }
+  }, [timeRange]);
+
+  const formatXAxis = (tickItem: string) => {
+    if (timeRange === 'this_month' || timeRange === 'last_month') {
+      return new Date(tickItem).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    }
+    return new Date(tickItem + '-02').toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  };
+
   const profitData = useMemo(() => {
     const now = new Date();
     let startDate: Date | null = null;
@@ -310,28 +343,28 @@ export default function AnalyticsPage() {
     const dataMap = new Map<string, { Revenue: number; Expenses: number }>();
 
     filteredSales.forEach(sale => {
-      const month = sale.date.substring(0, 7); // Group by YYYY-MM
-      const entry = dataMap.get(month) || { Revenue: 0, Expenses: 0 };
+      const groupKey = getGroupKey(sale.date, timeRange);
+      const entry = dataMap.get(groupKey) || { Revenue: 0, Expenses: 0 };
       entry.Revenue += sale.totalSale;
-      dataMap.set(month, entry);
+      dataMap.set(groupKey, entry);
     });
 
     filteredExpenses.forEach(expense => {
-      const month = expense.date.substring(0, 7); // Group by YYYY-MM
-      const entry = dataMap.get(month) || { Revenue: 0, Expenses: 0 };
+      const groupKey = getGroupKey(expense.date, timeRange);
+      const entry = dataMap.get(groupKey) || { Revenue: 0, Expenses: 0 };
       entry.Expenses += expense.amount;
-      dataMap.set(month, entry);
+      dataMap.set(groupKey, entry);
     });
 
     if (dataMap.size === 0 && (startDate && endDate)) {
-      const startMonth = startDate.toISOString().substring(0, 7);
-      return [{ month: startMonth, Revenue: 0, Expenses: 0, Profit: 0 }];
+      const startGroup = getGroupKey(startDate.toISOString().split('T')[0], timeRange);
+      return [{ group: startGroup, Revenue: 0, Expenses: 0, Profit: 0 }];
     }
 
     return Array.from(dataMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, { Revenue, Expenses }]) => ({
-        month,
+      .map(([group, { Revenue, Expenses }]) => ({
+        group,
         Revenue,
         Expenses,
         Profit: Revenue - Expenses,
@@ -400,7 +433,7 @@ export default function AnalyticsPage() {
           {/* Profit/Revenue Chart */}
           <section className="bg-white p-4 md:p-5 rounded-lg shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-gray-200">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-2">
-              <h3 className="text-lg font-bold text-gray-900">Monthly Performance</h3>
+              <h3 className="text-lg font-bold text-gray-900">{chartTitle}</h3>
               <Select value={timeRange} onValueChange={setTimeRange}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Select a time range" />
@@ -419,7 +452,7 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={profitData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey="group" tickFormatter={formatXAxis} />
                   <YAxis tickFormatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`} />
                   <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
                   <Legend />

@@ -5,9 +5,16 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '../utils/supabase';
 
+interface UserMetadata {
+  name?: string;
+  farm_location?: string;
+  farm_bbox?: number[];
+  [key: string]: any;
+}
+
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import { Loader2, KeyRound, User as UserIcon, MapPin } from 'lucide-react';
+import { Loader2, KeyRound, User as UserIcon, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function ProfilePage() {
   const [supabase] = useState(() => createClient());
@@ -15,7 +22,7 @@ export default function ProfilePage() {
 
   // Component State
   const [isSidebarOpen, setSidebarOpen] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>('profile'); // Set a unique tab key for profile
+  const [activeTab, setActiveTab] = useState<string>('profile');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +37,9 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isProfileSaving, setProfileSaving] = useState(false);
   const [isPasswordSaving, setPasswordSaving] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [locationMessage, setLocationMessage] = useState('');
+  const [farmBbox, setFarmBbox] = useState<number[] | null>(null);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -38,8 +48,10 @@ export default function ProfilePage() {
         router.push('/signin'); // Redirect to sign-in if not authenticated
       } else {
         setUser(session.user);
-        setName(session.user.user_metadata?.name || '');
-        setLocation(session.user.user_metadata?.farm_location || '');
+        const metadata: UserMetadata = session.user.user_metadata;
+        setName(metadata.name || '');
+        setLocation(metadata.farm_location || '');
+        setFarmBbox(metadata.farm_bbox || null);
         setLoading(false);
       }
     };
@@ -54,7 +66,10 @@ export default function ProfilePage() {
     if (!user) return;
 
     const { error } = await supabase.auth.updateUser({
-      data: { name, farm_location: location },
+      data: { 
+        name, 
+        farm_location: location,
+        farm_bbox: farmBbox },
     });
 
     if (error) {
@@ -63,6 +78,41 @@ export default function ProfilePage() {
       setProfileMessage({ type: 'success', text: 'Profile updated successfully!' });
     }
     setProfileSaving(false);
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationMessage('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setLocationStatus('loading');
+    setLocationMessage('Getting your location...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const radius = 0.01; // Approx 1.1km radius
+        const bbox = [
+          longitude - radius,
+          latitude - radius,
+          longitude + radius,
+          latitude + radius,
+        ];
+        setFarmBbox(bbox); // Update state locally
+        setLocationStatus('success');
+        setLocationMessage('Location captured! Click "Save Changes" to update.');
+      },
+      (error) => {
+        setLocationStatus('error');
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationMessage('Location permission denied. Please enable it in your browser settings.');
+        } else {
+          setLocationMessage('Could not get your location. Please try again.');
+        }
+      }
+    );
   };
 
   const handlePasswordUpdate = async (e: FormEvent) => {
@@ -114,7 +164,7 @@ export default function ProfilePage() {
       />
 
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
-        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="profile_title" />
+        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="Profile" />
         
         <div className="flex-1 p-4 md:p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -148,6 +198,22 @@ export default function ProfilePage() {
                       className="w-full pl-10 pr-4 py-2 border rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="e.g., Pune, Maharashtra"
                     />
+                  </div>
+                  <div className="pt-2 space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleGetLocation}
+                      disabled={locationStatus === 'loading'}
+                      className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    >
+                      {locationStatus === 'loading' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+                      Update with Current Location
+                    </button>
+                    {locationMessage && <div className={`text-xs p-2 rounded-md flex items-center gap-2 ${locationStatus === 'success' ? 'bg-green-100 text-green-800' : ''} ${locationStatus === 'error' ? 'bg-red-100 text-red-800' : ''} ${locationStatus === 'loading' ? 'bg-blue-100 text-blue-800' : ''}`}>
+                      {locationStatus === 'success' && <CheckCircle className="h-4 w-4" />}
+                      {locationStatus === 'error' && <AlertTriangle className="h-4 w-4" />}
+                      {locationMessage}
+                    </div>}
                   </div>
                 </div>
                 {profileMessage && (

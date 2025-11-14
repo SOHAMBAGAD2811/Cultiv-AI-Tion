@@ -32,7 +32,7 @@ export default function ChatbotPage() {
     }
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
@@ -102,54 +102,75 @@ export default function ChatbotPage() {
         <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="sidebar_assistant" />
         
         <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 pr-2">
-            {messages.map((msg, index) => (
-              <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white flex-shrink-0">
-                    <Bot size={20} />
-                  </div>
-                )}
-                <div className={`max-w-lg p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-500 text-white rounded-br-none whitespace-pre-wrap' : 'bg-white text-gray-800 shadow-sm rounded-bl-none'}`}>
-                  {isLoading && index === messages.length - 1 && !msg.content ? (
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-0"></span>
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-150"></span>
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-300"></span>
+          {messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center pb-20">
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">Cultiv-AI</h1>
+              <p className="text-gray-500 mb-8">{t('ask_expert_title')}</p>
+              <form onSubmit={handleSubmit} className="w-full max-w-2xl flex items-center gap-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={t('ask_expert_desc')}
+                  className="flex-1 px-4 py-2 border bg-white text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 placeholder:text-gray-500 shadow-md"
+                  disabled={isLoading}
+                />
+                <button type="submit" disabled={isLoading || !input.trim()} className="p-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400">
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                </button>
+              </form>
+            </div>
+          ) : (
+            <>
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 pr-2">
+                {messages.map((msg, index) => (
+                  <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {msg.role === 'assistant' && (
+                      <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white flex-shrink-0">
+                        <Bot size={20} />
+                      </div>
+                    )}
+                    <div className={`max-w-lg p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-500 text-white rounded-br-none whitespace-pre-wrap' : 'bg-white text-gray-800 shadow-sm rounded-bl-none'}`}>
+                      {isLoading && index === messages.length - 1 && !msg.content ? (
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-0"></span>
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-150"></span>
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse delay-300"></span>
+                        </div>
+                      ) : (
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline" /> }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline" /> }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-                {msg.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 flex-shrink-0">
-                    <User size={20} />
+                    {msg.role === 'user' && (
+                      <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 flex-shrink-0">
+                        <User size={20} />
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
-
-          <form onSubmit={handleSubmit} className="mt-4 flex-shrink-0 flex items-center gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t('ask_expert_desc')}
-              className="flex-1 px-4 py-2 border bg-gray-50 text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 placeholder:text-gray-500"
-              disabled={isLoading}
-            />
-            <button type="submit" disabled={isLoading || !input.trim()} className="p-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400">
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            </button>
-          </form>
+              <form onSubmit={handleSubmit} className="mt-4 flex-shrink-0 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={t('ask_expert_desc')}
+                  className="flex-1 px-4 py-2 border bg-white text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 placeholder:text-gray-500 shadow-md"
+                  disabled={isLoading}
+                />
+                <button type="submit" disabled={isLoading || !input.trim()} className="p-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400">
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </main>
     </div>

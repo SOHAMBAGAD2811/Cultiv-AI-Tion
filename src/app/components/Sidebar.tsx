@@ -27,7 +27,7 @@ export default function Sidebar({ isOpen, setIsOpen, activeTab, setActiveTab }: 
   const navItems: NavItem[] = [
     { id: 'home',      labelKey: 'sidebar_dashboard', Icon: Home, link: '/dashboard' },
     { id: 'learning',  labelKey: 'sidebar_learning',  Icon: BookOpen, link: '/learning_path' },
-    { id: 'community', labelKey: 'sidebar_community', Icon: Users, link: '/community' },    
+    { id: 'community', labelKey: 'sidebar_community', Icon: Users, link: '/community' },        
     // Link to the internal AI assistant page.
     { id: 'analytics', labelKey: 'sidebar_analytics', Icon: LineChart, link: '/analytics' }, // New item for business analytics
     { id: 'chatbot',   labelKey: 'sidebar_assistant', Icon: Mic, link: '/chatbot' },

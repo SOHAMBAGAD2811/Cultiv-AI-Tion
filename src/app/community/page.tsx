@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, FormEvent } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { createClient } from '../utils/supabase';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -24,6 +25,7 @@ function ChatInterface({ user }: { user: User | null }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when new messages arrive
@@ -131,9 +133,52 @@ function ChatInterface({ user }: { user: User | null }) {
     }
   };
 
+  const handleResetChat = async () => {
+    if (!user) {
+      setError("You must be logged in to reset the chat.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete all chat messages? This action cannot be undone.")) {
+      return;
+    }
+
+    setIsResetting(true);
+    setError(null);
+
+    try {
+      // Delete all rows from the community_chat table.
+      // The filter `gt('id', -1)` is a way to target all rows since IDs are positive.
+      const { error: deleteError } = await supabase.from('community_chat').delete().gt('id', -1);
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      // The real-time subscription will receive an empty list, but we can also clear it locally.
+      setChatMessages([]);
+    } catch (err) {
+      setError(`Failed to reset chat: ${(err as Error).message}`);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-md p-4">
-      <h3 className="text-xl font-semibold mb-4">Community Chat</h3>
+    <div className="flex flex-col h-full bg-white rounded-lg shadow-md p-4 md:p-5">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold">Community Chat</h3>
+        {user && (
+          <button
+            onClick={handleResetChat}
+            disabled={isResetting}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            <span>{isResetting ? 'Resetting...' : 'Reset Chat'}</span>
+          </button>
+        )}
+      </div>
       <div className="flex-1 overflow-y-auto border rounded-md p-4 mb-4 bg-gray-50 space-y-4">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-md mb-4">

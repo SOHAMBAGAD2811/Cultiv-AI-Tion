@@ -6,6 +6,7 @@ import { Play, Sun, Cloud, CloudRain, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { User } from '@supabase/supabase-js';
  
 import Sidebar from '../components/Sidebar';
@@ -29,21 +30,14 @@ interface LearningVideo {
   duration: string;
 }
 
-const mockSalesData = [
-  { name: 'Jan', sales: 4000 },
-  { name: 'Feb', sales: 3000 },
-  { name: 'Mar', sales: 5000 },
-  { name: 'Apr', sales: 2780 },
-  { name: 'May', sales: 1890 },
-  { name: 'Jun', sales: 2390 },
-];
-
 export default function CultivAIApp() {
   const { t } = useTranslation();
   
   const [activeTab, setActiveTab] = useState<string>('home');
   const [isSidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+  const [timeRange, setTimeRange] = useState('all');
   const [loading, setLoading] = useState(false);
   // Supabase client + auth state so we can read the user's saved farm location
   const [supabase] = useState(() => createClient());
@@ -106,6 +100,120 @@ export default function CultivAIApp() {
     fetchWeather();
   }, [user]);
 
+  const getGroupKey = (date: string, range: string) => {
+    if (range === 'this_month' || range === 'last_month' || range === 'last_30_days') {
+      return date; // Group by day (YYYY-MM-DD)
+    }
+    return date.substring(0, 7); // Group by month (YYYY-MM)
+  };
+
+  const formatXAxis = (tickItem: string) => {
+    const isDaily = timeRange === 'this_month' || timeRange === 'last_month';
+    const date = isDaily ? new Date(tickItem + 'T00:00:00') : new Date(tickItem + '-02'); // Add day/time to parse month correctly
+    return date.toLocaleDateString('en-US', { month: 'short', day: isDaily ? 'numeric' : undefined });
+  };
+
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      if (!user) { setAnalyticsData([]); return; }
+
+      try {
+        const filePath = `${user.id}.json`;
+        const { data, error } = await supabase.storage
+          .from('analytics-data')
+          .download(filePath);
+
+        if (error) {
+          if (error.message.includes('not found')) {
+            // No data file yet, which is not an error.
+            setAnalyticsData([]);
+            return;
+          }
+          throw error;
+        }
+
+        if (data) {
+          const savedData = JSON.parse(await data.text())
+          if (savedData.analytics && Array.isArray(savedData.analytics)) {
+            const now = new Date();
+            let startDate: Date | null = null;
+            let endDate: Date | null = null;
+
+            switch (timeRange) {
+              case 'this_month':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+              case 'last_month':
+                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                break;
+              case 'current_quarter': {
+                const quarter = Math.floor(now.getMonth() / 3);
+                startDate = new Date(now.getFullYear(), quarter * 3, 1);
+                endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+                break;
+              }
+              case 'last_quarter': {
+                const quarter = Math.floor(now.getMonth() / 3);
+                const currentYear = now.getFullYear();
+                // If it's the first quarter, the last quarter was in the previous year
+                const startYear = quarter === 0 ? currentYear - 1 : currentYear;
+                const startQuarter = quarter === 0 ? 3 : quarter - 1;
+                startDate = new Date(startYear, startQuarter * 3, 1);
+                endDate = new Date(startYear, startQuarter * 3 + 3, 0);
+                break;
+              }
+              case 'current_fy': {
+                // Assuming Financial Year starts in April
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
+                startDate = new Date(fyStartYear, 3, 1); // April 1st
+                endDate = new Date(fyStartYear + 1, 2, 31); // March 31st
+                break;
+              }
+              case 'all':
+              default: // 'all'
+                break;
+            }
+
+            const filteredData = savedData.analytics.filter((item: any) => {
+              if (!startDate || !endDate) return true;
+              const itemDate = new Date(item.date);
+              return itemDate >= startDate && itemDate <= endDate;
+            });
+
+            const dataMap = new Map<string, { sales: number; expenditure: number; profit: number }>();
+
+            filteredData.forEach((item: any) => {
+              const groupKey = getGroupKey(item.date, timeRange);
+              const entry = dataMap.get(groupKey) || { sales: 0, expenditure: 0, profit: 0 };
+              entry.sales += item.sales;
+              entry.expenditure += item.expenditure;
+              dataMap.set(groupKey, entry);
+            });
+
+            const chartData = Array.from(dataMap.entries())
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([group, values]) => ({
+                name: group,
+                sales: values.sales,
+                expenditure: values.expenditure,
+                profit: values.sales - values.expenditure,
+              }));
+
+            setAnalyticsData(chartData);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching analytics data from storage:', err);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, [user, supabase, timeRange]);
+
   return (
     <div className="relative min-h-screen bg-gray-100 font-sans md:flex">
       
@@ -130,18 +238,33 @@ export default function CultivAIApp() {
             <div className="lg:col-span-2 space-y-4 lg:space-y-6">
               {/* Analytics Chart (moved to top-left) */}
               <section className="bg-white p-4 md:p-5 rounded-lg shadow-sm hover:shadow-lg hover:-translate-y-1 transition-transform duration-200">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-2">
                   <h2 className="text-xl font-bold text-gray-900">{t('business_analytics')}</h2>
-                  <Link href="/analytics" className="flex items-center text-sm font-medium text-green-600 hover:text-green-800">
-                    {t('view_details')}
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Link>
+                  <div className="flex items-center gap-4">
+                    <Select value={timeRange} onValueChange={setTimeRange}>
+                      <SelectTrigger className="w-full sm:w-[160px] text-sm">
+                        <SelectValue placeholder="Select range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Time</SelectItem>
+                        <SelectItem value="this_month">This Month</SelectItem>
+                        <SelectItem value="last_month">Last Month</SelectItem>
+                        <SelectItem value="current_quarter">Current Quarter</SelectItem>
+                        <SelectItem value="last_quarter">Last Quarter</SelectItem>
+                        <SelectItem value="current_fy">Current Financial Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Link href="/analytics" className="flex items-center text-sm font-medium text-green-600 hover:text-green-800 whitespace-nowrap">
+                      {t('view_details')}
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </div>
                 </div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={mockSalesData}>
+                    <LineChart data={analyticsData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
+                      <XAxis dataKey="name" tickFormatter={formatXAxis} />
                       <YAxis />
                       <Tooltip />
                       <Legend />
@@ -149,7 +272,25 @@ export default function CultivAIApp() {
                         type="monotone"
                         dataKey="sales"
                         stroke="#22c55e"
-                        name={t('monthly_sales')}
+                        strokeWidth={2}
+                        dot={{ r: 3 }} activeDot={{ r: 6 }}
+                        name={t('sales')}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="expenditure"
+                        stroke="#ef4444"
+                        dot={{ r: 3 }} activeDot={{ r: 6 }}
+                        strokeWidth={2}
+                        name={t('expenditure')}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="profit"
+                        dot={{ r: 3 }} activeDot={{ r: 6 }}
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        name={t('profit')}
                       />
                     </LineChart>
                   </ResponsiveContainer>
