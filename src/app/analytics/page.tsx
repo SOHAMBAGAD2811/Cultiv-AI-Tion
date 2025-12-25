@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { createClient } from '../utils/supabase';
+import { fetchAIInsights } from '../lib/analytics-utils';
 import '../i18n';
 
 interface InventoryItem {
@@ -149,7 +150,8 @@ export default function AnalyticsPage() {
     };
 
     const checkUserAndLoadData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { getSessionSafe } = await import('../utils/auth');
+      const session = await getSessionSafe(supabase);
       if (!session) {
         router.push('/signin');
       } else {
@@ -380,8 +382,8 @@ export default function AnalyticsPage() {
   const totalExpenses = useMemo(() => expenses.reduce((sum, exp) => sum + exp.amount, 0), [expenses]);
   const netProfit = useMemo(() => totalRevenue - totalExpenses, [totalRevenue, totalExpenses]);
 
-  // --- Fetch AI Insights ---
-  const fetchAIInsights = useCallback(async () => {
+  // --- Fetch AI Insights (uses cached helper) ---
+  const fetchInsights = useCallback(async () => {
     setIsLoadingInsights(true);
     try {
       // Get top crops
@@ -404,27 +406,17 @@ export default function AnalyticsPage() {
         .slice(0, 3)
         .map(([cat]) => cat);
 
-      const response = await fetch('/api/analytics-insights', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          totalRevenue,
-          totalExpenses,
-          netProfit,
-          inventoryCount: inventory.length,
-          salesCount: sales.length,
-          expensesCount: expenses.length,
-          topCrops,
-          topExpenseCategories,
-        }),
+      const insights = await fetchAIInsights({
+        totalRevenue,
+        totalExpenses,
+        netProfit,
+        inventoryCount: inventory.length,
+        salesCount: sales.length,
+        expensesCount: expenses.length,
+        topCrops,
+        topExpenseCategories,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch insights');
-      }
-
-      const insights: AIInsight = await response.json();
       setAiInsights(insights);
     } catch (err) {
       console.error('Error fetching insights:', err);
@@ -565,7 +557,7 @@ export default function AnalyticsPage() {
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
-        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="sidebar_analytics" user={user} />
+        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title={t('sidebar_analytics')} user={user} />
 
         <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-6">
           {/* Save Status Indicator */}
@@ -639,7 +631,7 @@ export default function AnalyticsPage() {
                 <h3 className="text-lg font-bold text-gray-900">AI Insights & Recommendations</h3>
               </div>
               <button
-                onClick={fetchAIInsights}
+                onClick={() => fetchInsights()}
                 disabled={isLoadingInsights || sales.length === 0}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition ${
                   isLoadingInsights || sales.length === 0
@@ -737,7 +729,7 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="group" tickFormatter={formatXAxis} />
                   <YAxis tickFormatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`} />
-                  <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
+                  <Tooltip formatter={(value: any) => `₹${Number(value).toLocaleString('en-IN')}`} />
                   <Legend />
                   <Line type="monotone" dataKey="Revenue" stroke="#16a34a" strokeWidth={2} activeDot={{ r: 8 }} />
                   <Line type="monotone" dataKey="Expenses" stroke="#dc2626" strokeWidth={2} />

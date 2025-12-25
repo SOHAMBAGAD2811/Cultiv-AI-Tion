@@ -59,51 +59,62 @@ export async function POST(request: NextRequest) {
     // Prepare detailed evaluation
     const evaluations = [];
 
+    // Collect incorrect questions and request feedback in a single batched call to reduce latency
+    const incorrectIndices: number[] = [];
+    for (let i = 0; i < questions.length; i++) {
+      if (userAnswers[i] !== questions[i].correctAnswer) incorrectIndices.push(i);
+    }
+
+    // Prepare placeholder evaluations for all questions
     for (let i = 0; i < questions.length; i++) {
       const question = questions[i];
-      const userAnswer = userAnswers[i];
-      const isCorrect = userAnswer === question.correctAnswer;
-
-      let feedback = "";
-
-      if (isCorrect) {
-        feedback = `Correct! "${question.options[userAnswer]}" is the right answer.`;
-      } else {
-        // Use Gemini to provide feedback on incorrect answers
-        const prompt = `
-Question: ${question.question}
-
-Options:
-${question.options.map((opt, idx) => `${idx + 1}. ${opt}`).join("\n")}
-
-User's Answer: ${question.options[userAnswer]}
-Correct Answer: ${question.options[question.correctAnswer]}
-
-Video Topic: ${videoTitle}
-
-Please provide a brief, educational explanation (2-3 sentences) of why the correct answer is right and what the user might have misunderstood. Be constructive and helpful.
-`;
-
-        try {
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          const result = await model.generateContent(prompt);
-          feedback =
-            result.response
-              .text()
-              .substring(0, 500) || "See correct answer above.";
-        } catch (error) {
-          console.error("Error calling Gemini API:", error);
-          feedback = `The correct answer is "${question.options[question.correctAnswer]}". Please review the video to understand this concept better.`;
-        }
-      }
+      const isCorrect = userAnswers[i] === question.correctAnswer;
+      const feedback = isCorrect
+        ? `Correct! "${question.options[userAnswers[i]]}" is the right answer.`
+        : '';
 
       evaluations.push({
         questionId: question.id,
         isCorrect,
-        userAnswer: question.options[userAnswer],
+        userAnswer: question.options[userAnswers[i]],
         correctAnswer: question.options[question.correctAnswer],
         feedback,
       });
+    }
+
+    if (incorrectIndices.length > 0) {
+      // Limit batch size to avoid extremely long prompts
+      const indicesToAsk = incorrectIndices.slice(0, 12);
+
+      const batchedPromptParts = indicesToAsk.map((idx, idxPos) => {
+        const q = questions[idx];
+        return `Q${idxPos + 1} ID:${q.id}\nQuestion: ${q.question}\nOptions:\n${q.options
+          .map((opt, i) => `${i + 1}. ${opt}`)
+          .join('\n')}\nUser's Answer: ${q.options[userAnswers[idx]]}\nCorrect Answer: ${q.options[q.correctAnswer]}\n`;
+      });
+
+      const batchedPrompt = `You are an educational assistant. For each labeled question below (Q1, Q2...), provide a concise, constructive 1-2 sentence explanation of why the correct answer is right and what the user might have misunderstood. Return the answers labeled in the same order: Q1:, Q2:, etc.\n\n${batchedPromptParts.join('\n---\n')}`;
+
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent(batchedPrompt);
+        const responseText = result.response.text();
+
+        // Split responses by Q labels
+        const parts = responseText.split(/Q\d+:/).map((p) => p.trim()).filter(Boolean);
+
+        for (let i = 0; i < indicesToAsk.length; i++) {
+          const origIdx = indicesToAsk[i];
+          const part = parts[i] || '';
+          evaluations[origIdx].feedback = part.substring(0, 500) || `The correct answer is "${questions[origIdx].options[questions[origIdx].correctAnswer]}".`;
+        }
+      } catch (error) {
+        console.error('Error calling Gemini for batched feedback:', error);
+        // Fallback: provide generic feedback for incorrect answers
+        for (const origIdx of indicesToAsk) {
+          evaluations[origIdx].feedback = `The correct answer is "${questions[origIdx].options[questions[origIdx].correctAnswer]}". Please review the video to understand this concept better.`;
+        }
+      }
     }
 
     return NextResponse.json({

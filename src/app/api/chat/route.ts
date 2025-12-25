@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 const API_KEY = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
 const MODEL = 'gemini-2.5-flash';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -16,6 +18,7 @@ console.log('[api/chat] Using API URL:', API_URL);
 // If GEMINI_API_KEY is set, forwards the prompt to the Gemini (Generative Language) REST API and returns its text output.
 // If GEMINI_API_KEY is missing, falls back to a local echo response so the UI still works.
 export async function POST(req: Request) {
+  const start = Date.now();
   try {
     console.log('[api/chat] Starting request processing');
     
@@ -128,6 +131,7 @@ export async function POST(req: Request) {
       error: 'An error occurred while processing your request',
       details: error.message || String(err)
     }, { status: 500 });
+  } finally {
+    console.log('[api/chat] Request handled in', Date.now() - start, 'ms');
   }
 }
-

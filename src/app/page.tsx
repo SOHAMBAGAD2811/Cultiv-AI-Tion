@@ -125,8 +125,9 @@ export default function LandingPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session: Session | null) => {
       setSession(session);
     });
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Use safe getSession to handle invalid/missing refresh tokens
+    import('../app/utils/auth').then(({ getSessionSafe }) => {
+      getSessionSafe(supabase).then((s) => setSession(s));
     });
 
     return () => subscription.unsubscribe();

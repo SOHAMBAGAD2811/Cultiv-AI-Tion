@@ -26,7 +26,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { getSessionSafe } = await import('../utils/auth');
+      const session = await getSessionSafe(supabase);
       if (!session) {
         router.push('/signin');
         return;
@@ -99,7 +100,7 @@ export default function ProfilePage() {
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
-        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="Profile Settings" user={user} />
+        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title={t('profile_settings')} user={user} />
         
         <div className="flex-1 p-4 md:p-6">
           <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">

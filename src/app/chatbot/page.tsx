@@ -69,7 +69,10 @@ export default function ChatbotPage() {
         const newMessages = [...prev];
         // Update the last assistant placeholder message
         if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
-          newMessages[newMessages.length - 1].content = assistantText;
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            content: assistantText
+          };
         } else {
           newMessages.push({ role: 'assistant', content: assistantText });
         }
@@ -80,9 +83,12 @@ export default function ChatbotPage() {
       setMessages(prev => {
         const newMessages = [...prev];
         if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant' && newMessages[newMessages.length - 1].content === '') {
-          newMessages[newMessages.length - 1].content = 'Sorry, I could not connect to the assistant.';
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            content: t('assistant_connection_error')
+          };
         } else {
-          newMessages.push({ role: 'assistant', content: 'Sorry, I could not connect to the assistant.' });
+          newMessages.push({ role: 'assistant', content: t('assistant_connection_error') });
         }
         return newMessages;
       });
@@ -99,7 +105,7 @@ export default function ChatbotPage() {
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'md:ml-0'} h-screen overflow-hidden`}>
-        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="sidebar_assistant" />
+        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title={t('sidebar_assistant')} />
         
         <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
           {messages.length === 0 ? (

@@ -57,9 +57,10 @@ export async function saveQuizAttempt(attempt: QuizAttempt) {
  */
 export async function getQuizAttempts(userId: string, videoId?: string) {
   try {
+    // Select only required columns to reduce payload and latency
     let query = supabase
       .from("quiz_attempts")
-      .select("*")
+      .select("user_id,video_id,video_title,score,total_questions,attempted_at")
       .eq("user_id", userId)
       .order("attempted_at", { ascending: false });
 

@@ -9,6 +9,10 @@ if (!geminiApiKey) {
 
 const genAI = new GoogleGenerativeAI(geminiApiKey);
 
+// Simple in-memory cache to avoid repeated Gemini calls for identical analytics payloads
+const INSIGHTS_CACHE: Map<string, { value: any; expires: number }> = new Map();
+const INSIGHTS_TTL_MS = 1000 * 60 * 30; // 30 minutes
+
 interface AnalyticsInsightRequest {
   totalRevenue: number;
   totalExpenses: number;
@@ -21,9 +25,18 @@ interface AnalyticsInsightRequest {
 }
 
 export async function POST(request: NextRequest) {
+  const start = Date.now();
   try {
     const body: AnalyticsInsightRequest = await request.json();
     console.log('Analytics request received:', body);
+
+    const cacheKey = JSON.stringify(body);
+    const now = Date.now();
+    const cached = INSIGHTS_CACHE.get(cacheKey);
+    if (cached && cached.expires > now) {
+      console.log('[api/analytics-insights] Returning cached insights (fast-path)');
+      return NextResponse.json(cached.value);
+    }
 
     const {
       totalRevenue,
@@ -107,6 +120,9 @@ Keep the response practical, specific to farming, and actionable.`;
             : "good"
           : "critical",
     });
+  } finally {
+    console.log('[api/analytics-insights] Request handled in', Date.now() - start, 'ms');
+  }
   } catch (error) {
     console.error("Error generating insights:", error);
     return NextResponse.json(
