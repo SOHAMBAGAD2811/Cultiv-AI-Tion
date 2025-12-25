@@ -1,159 +1,170 @@
 "use client";
 
-import { useState }from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '../utils/supabase';
 import Link from 'next/link';
-import { Loader2, MapPin, CheckCircle, AlertTriangle } from 'lucide-react';
+import { createClient } from '../utils/supabase';
+import { Loader2, Mail, Lock, User, Globe, Camera, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-type LocationStatus = 'idle' | 'loading' | 'success' | 'error';
-
-export default function SignUpPage() {
+export default function SignupPage() {
+  const [supabase] = useState(() => createClient());
+  const router = useRouter();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [farmLocation, setFarmLocation] = useState('');
-  const [farmBbox, setFarmBbox] = useState<number[] | null>(null);
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
-  const [locationMessage, setLocationMessage] = useState('');
-  const [isSigningUp, setIsSigningUp] = useState(false);
-  const [signupError, setSignupError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState('');
+  const [language, setLanguage] = useState('en');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const router = useRouter();
-  const [supabase] = useState(() => createClient());
-
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationStatus('error');
-      setLocationMessage('Geolocation is not supported by your browser.');
-      return;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
     }
-
-    setLocationStatus('loading');
-    setLocationMessage('Getting your location...');
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const radius = 0.01; // Approx. 1.1km radius to create a bounding box
-        const bbox = [
-          longitude - radius,
-          latitude - radius,
-          longitude + radius,
-          latitude + radius,
-        ];
-        setFarmBbox(bbox);
-        setLocationStatus('success');
-        setLocationMessage('Location captured successfully! You can now sign up.');
-      },
-      (error) => {
-        setLocationStatus('error');
-        if (error.code === error.PERMISSION_DENIED) {
-          setLocationMessage('Location permission denied. Please enable it in your browser settings to use this feature.');
-        } else {
-          setLocationMessage('Could not get your location. Please try again or enter it manually.');
-        }
-      }
-    );
   };
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSigningUp(true);
-    setSignupError(null);
+    setLoading(true);
+    setError(null);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name,
-          farm_location: farmLocation,
-          farm_bbox: farmBbox,         // The coordinates
+    try {
+      // 1. Sign Up User
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            language,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      setSignupError(error.message);
-    } else {
-      // Redirect user to check their email for confirmation
-      router.push('/confirm-email');
+      if (signUpError) throw signUpError;
+
+      // 2. Upload Avatar if selected and user created
+      if (data.user && avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${data.user.id}-${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, avatarFile);
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          
+          // 3. Update User Metadata with Avatar URL
+          await supabase.auth.updateUser({
+            data: { avatar_url: urlData.publicUrl }
+          });
+        }
+      }
+
+      router.push('/learning_path');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setIsSigningUp(false);
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center text-gray-900">Create an Account</h1>
-        <form onSubmit={handleSignUp} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full px-4 py-2 text-gray-700 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full px-4 py-2 text-gray-700 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full px-4 py-2 text-gray-700 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <input
-            type="text"
-            placeholder="Farm City/Region (e.g., Pune)"
-            value={farmLocation}
-            onChange={(e) => setFarmLocation(e.target.value)}
-            required
-            className="w-full px-4 py-2 text-gray-700 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-green-600 p-6 text-center">
+          <h2 className="text-2xl font-bold text-white">Create Account</h2>
+          <p className="text-green-100 mt-2">Join the farming community</p>
+        </div>
 
-          <div className="border-t pt-4 space-y-3">
-             <p className="text-sm text-center text-gray-600">For satellite imagery, please provide your farm's location.</p>
-             <button
-              type="button"
-              onClick={handleGetLocation}
-              disabled={locationStatus === 'loading'}
-              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-            >
-              {locationStatus === 'loading' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
-              Use My Current Location
+        <div className="p-6">
+          {error && (
+            <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md flex items-center gap-2 text-sm">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSignUp} className="space-y-4">
+            {/* Profile Picture Selection */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-sm overflow-hidden mb-2">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <User className="w-10 h-10" />
+                  </div>
+                )}
+              </div>
+              <label className="cursor-pointer flex items-center gap-2 text-sm text-green-600 font-medium hover:text-green-700">
+                <Camera className="w-4 h-4" />
+                <span>{avatarPreview ? 'Change Photo' : 'Add Photo'}</span>
+                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900" placeholder="John Doe" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900" placeholder="you@example.com" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-10 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900" placeholder="••••••••" minLength={6} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Language Preference</label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 bg-white text-gray-900">
+                  <option value="en">English</option>
+                  <option value="hi">Hindi</option>
+                  <option value="mr">Marathi</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2 mt-6">
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              Sign Up
             </button>
-            {locationMessage && <div className={`text-xs p-2 rounded-md flex items-center gap-2 ${locationStatus === 'success' ? 'bg-green-100 text-green-800' : ''} ${locationStatus === 'error' ? 'bg-red-100 text-red-800' : ''} ${locationStatus === 'loading' ? 'bg-blue-100 text-blue-800' : ''}`}>
-              {locationStatus === 'success' && <CheckCircle className="h-4 w-4" />}
-              {locationStatus === 'error' && <AlertTriangle className="h-4 w-4" />}
-              {locationMessage}
-            </div>}
-          </div>
+          </form>
 
-          <button
-            type="submit"
-            disabled={isSigningUp || locationStatus === 'loading'}
-            className="w-full px-4 py-2 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400"
-          >
-            {isSigningUp ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : 'Sign Up'}
-          </button>
-          {signupError && <p className="text-sm text-center text-red-600">{signupError}</p>}
-        </form>
-        <p className="text-sm text-center text-gray-600">
-          Already have an account?{' '}
-          <Link href="/signin" className="font-medium text-green-600 hover:underline">
-            Sign In
-          </Link>
-        </p>
+          <div className="mt-6 text-center text-sm text-gray-600">
+            Already have an account? <Link href="/signin" className="text-green-600 hover:underline font-medium">Sign In</Link>
+          </div>
+        </div>
       </div>
     </div>
   );

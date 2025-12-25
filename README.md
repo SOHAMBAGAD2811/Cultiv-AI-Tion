@@ -4,21 +4,54 @@ An intelligent farming assistant application built with Next.js that helps farme
 
 ## Features
 
-- 🤖 AI-powered farming assistant using Gemini API
+- 🤖 AI-powered farming assistant using Gemini 2.5 Flash API
   - Get crop recommendations
   - Disease identification help
   - Best practices for cultivation
   - Seasonal planning assistance
+  - Real-time chatbot support with agricultural expertise
+
 - 🌍 Real-time weather forecasting for agricultural planning
-- 📚 Interactive learning path with videos and AI-powered quizzes
-  - 31 educational videos covering irrigation, soil health, pest control, and more
-  - 3 MCQ questions per video with AI-generated feedback
+  - Location-based weather updates
+  - Humidity and wind speed monitoring
+  - Weather-aware farming insights
+
+- 📚 Interactive learning path with 31 educational videos and AI-powered quizzes
+  - Comprehensive video library covering irrigation, soil health, pest control, and more
+  - 3 MCQ questions per video with instant AI-generated feedback
+  - One-question-per-screen quiz interface for better focus
   - Track quiz attempts and view progress statistics
+  - Intelligent feedback explaining correct/incorrect answers
+
+- 📊 Advanced Agricultural Analytics Dashboard
+  - Comprehensive business analytics with revenue, expenses, and profit tracking
+  - AI-powered insights using Gemini API for actionable recommendations
+  - Health status indicators (Good/Warning/Critical)
+  - Business recommendations for profitability improvement
+  - Concerns and opportunities analysis
+  - Multiple time range filters (All Time, This Month, Last Month, Quarterly, Financial Year)
+  - Inventory, sales, and expense management
+  - Data export functionality (CSV)
+  - Supabase-backed secure data storage
+
 - 👨‍🌾 Farmer community platform for knowledge sharing
+  - Connect with other farmers
+  - Share farming experiences and best practices
+  - Ask questions and get community support
+
 - 🌐 Multi-language support (English, Hindi, Marathi) for local farmers
-- 📊 Agricultural analytics dashboard
+  - Seamless localization across the application
+  - Regional language support for better accessibility
+
 - 🤝 Connect with agricultural experts
+  - Direct expert consultation through chatbot
+  - Personalized guidance based on your farm situation
+
 - 🔐 Secure user profiles via Supabase
+  - Authentication and authorization
+  - User profile management
+  - Email verification
+  - Secure data storage
 
 ## Prerequisites
 
@@ -65,6 +98,10 @@ The AI assistant is configured with agricultural domain knowledge to provide:
    - Go to your Supabase dashboard
    - Run the SQL from `supabase/migrations/quiz_schema.sql` in the SQL editor
    - This creates the `quiz_attempts` table for tracking quiz progress
+5. Set up Storage Buckets:
+   - Go to the SQL editor in Supabase
+   - Run the SQL from `supabase/migrations/storage_setup.sql`
+   - This creates the `avatars` and `analytics-data` buckets with correct permissions
 
 ## Development
 
@@ -78,12 +115,21 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the a
 
 ## Features Guide
 
+### Dashboard Home
+Navigate to `/dashboard` to see:
+- **Weather Overview**: Real-time weather conditions for your farm location with humidity and wind speed
+- **Business Analytics Chart**: Quick view of your sales, expenses, and profit trends
+- **Learning Resources**: Featured educational videos to expand your farming knowledge
+- **Farm Insights**: Quick tips on weather awareness, pest management, and soil health
+- **Expert Connection**: Direct access to agricultural experts via chatbot
+
 ### Learning Path & Quizzes
-Navigate to `/learning-path` to access:
+Navigate to `/learning_path` to access:
 - **31 educational videos** on farming topics:
   - Irrigation systems (drip, sprinkler, moisture sensors)
   - Soil health (cover crops, composting, crop rotation)
   - Pest management (IPM, beneficial insects, neem oil)
+  - Crop selection and seasonal planning
   - And more...
   
 - **Interactive quizzes** for each video:
@@ -91,13 +137,50 @@ Navigate to `/learning-path` to access:
   - Get instant feedback powered by Gemini AI
   - View explanations for incorrect answers
   - Track your progress across all videos
+  - Quiz attempts securely stored in Supabase
 
 ### Quiz System
 - Click the green "Quiz" button on any video card
-- Answer questions one per screen
+- Answer questions one per screen for focused learning
 - Get AI-powered feedback explaining why answers are correct or incorrect
 - View your score and detailed results
 - Quiz attempts are securely stored in Supabase
+- Review your quiz history and progress
+
+### Agricultural Analytics Dashboard
+Navigate to `/analytics` for comprehensive business management:
+- **Data Management**:
+  - Track inventory (crops, quantities, units)
+  - Record sales transactions (crop, quantity, price, total)
+  - Log expenses (category, amount, date)
+  - Edit or delete any records
+  
+- **Financial Insights**:
+  - Real-time calculations of total revenue, expenses, and net profit
+  - Profit margin percentage analysis
+  - Business health status indicators (Good/Warning/Critical)
+  
+- **AI-Powered Business Analysis**:
+  - Click "Generate Insights" to get AI recommendations using Gemini API
+  - Get actionable recommendations for improving profitability
+  - Identify potential concerns and opportunities
+  - Understand top-performing crops and major expense categories
+  
+- **Time Range Filters**:
+  - View data for: All Time, This Month, Last Month, Current Quarter, Last Quarter, Current Financial Year
+  - Dynamic chart updates based on selected time range
+  
+- **Data Operations**:
+  - Export data to CSV for record-keeping
+  - Reset all data with confirmation
+  - Automatic data persistence to Supabase
+
+### Chatbot
+Navigate to `/chatbot` to:
+- Chat with AI agricultural expert
+- Get instant answers to farming questions
+- Receive personalized recommendations
+- Learn about best practices in real-time
 
 ## Building for Production
 
@@ -109,25 +192,59 @@ npm start
 ## Project Structure
 
 - `/src/app` - Next.js application source
-  - `/api` - API routes including weather, chat, and quiz evaluation endpoints
-  - `/components` - Reusable UI components including QuizModal
-  - `/lib` - Utility functions including Supabase quiz functions
-  - `/locales` - Internationalization files
-  - `/utils` - Helper functions
-  - `/learning_path` - Learning path page with quiz integration
+  - `/api` - API routes:
+    - `/weather` - Real-time weather data endpoint
+    - `/chat` - Chatbot API with Gemini integration
+    - `/evaluate-quiz` - Quiz evaluation with AI feedback
+    - `/analytics-insights` - AI business analytics endpoint
+  - `/components` - Reusable UI components:
+    - `QuizModal.tsx` - Interactive quiz component
+    - `Header.tsx` - Navigation header
+    - `Sidebar.tsx` - Navigation sidebar
+    - `ProfilePictureUpload.tsx` - Profile image uploader with preview
+    - `/ui` - Base UI components (button, input, select, textarea)
+  - `/lib` - Utility functions and database operations
+    - `supabase-quiz.ts` - Quiz-related database functions
+    - `utils.ts` - General utilities
+  - `/locales` - Internationalization files (EN, HI, MR)
+  - `/utils` - Helper functions and Supabase client
+  - `/dashboard` - Home dashboard page
+  - `/analytics` - Business analytics and insights page
+  - `/learning_path` - Learning path with video and quiz integration
     - `page.tsx` - Main learning path page
-    - `quizzes.json` - Pre-defined quiz questions (48 total questions)
+    - `quizzes.json` - 48 pre-defined quiz questions (3 per video)
+  - `/chatbot` - AI chatbot page
+  - `/community` - Community knowledge sharing
+  - `/profile` - User profile management
+  - `/signin`, `/signup`, `/forgot-password`, `/reset-password` - Authentication pages
 
 ## Technologies Used
 
-- [Next.js](https://nextjs.org/) - React framework for the web application
-- [Google Gemini API](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini) - AI for crop insights and quiz feedback
-- [Supabase](https://supabase.com/) - Authentication, database for quiz attempts, and community features
-- [i18next](https://www.i18next.com/) - Localization for regional language support
-- [OpenWeather API](https://openweathermap.org/) - Agricultural weather forecasting
-- [Tailwind CSS](https://tailwindcss.com/) - Responsive and accessible UI design
-- [React](https://reactjs.org/) - Interactive user interface components
-- [Lucide React](https://lucide.dev/) - Icon library
+- **Frontend Framework**:
+  - [Next.js 16](https://nextjs.org/) - React framework with App Router
+  - [React 19](https://reactjs.org/) - UI component library
+  - [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
+
+- **AI & LLM**:
+  - [Google Gemini 2.5 Flash API](https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/gemini) - Advanced AI for chatbot, quiz feedback, and analytics insights
+
+- **Backend & Database**:
+  - [Supabase](https://supabase.com/) - PostgreSQL database, authentication, and storage
+  - [Next.js API Routes](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) - Server-side endpoints
+
+- **Styling & UI**:
+  - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+  - [Lucide React](https://lucide.dev/) - Icon library for beautiful UI icons
+  - [Recharts](https://recharts.org/) - React charting library for analytics visualization
+
+- **Internationalization**:
+  - [i18next](https://www.i18next.com/) - Multi-language support (English, Hindi, Marathi)
+
+- **External APIs**:
+  - [OpenWeather API](https://openweathermap.org/) - Real-time weather data
+
+- **Database & ORM**:
+  - [@supabase/supabase-js](https://supabase.com/docs/reference/javascript) - Supabase client library
 
 ## Contributing
 

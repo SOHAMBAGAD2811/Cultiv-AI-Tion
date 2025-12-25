@@ -22,9 +22,10 @@ interface HeaderProps {
   isOpen: boolean;
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   title: string;
+  user?: User | null;
 }
 
-export default function Header({ isOpen, setSidebarOpen, title }: HeaderProps) {
+export default function Header({ isOpen, setSidebarOpen, title, user: propUser }: HeaderProps) {
   const { t, i18n } = useTranslation();
   const [isInsightsOpen, setInsightsOpen] = useState(false);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -35,20 +36,22 @@ export default function Header({ isOpen, setSidebarOpen, title }: HeaderProps) {
 
   // --- Auth State ---
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [internalUser, setInternalUser] = useState<User | null>(null);
   const [supabase] = useState(() => createClient()); // Initialize Supabase client
+
+  const user = propUser || internalUser;
 
   useEffect(() => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user || null);
+      setInternalUser(session?.user || null);
     });
 
     // Fetch initial session on component mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user || null);
+      setInternalUser(session?.user || null);
     });
 
     // Cleanup subscription on unmount
@@ -233,10 +236,18 @@ export default function Header({ isOpen, setSidebarOpen, title }: HeaderProps) {
               <span className="hidden sm:inline text-sm font-medium text-gray-700">{getUserFullName()}</span>
               <button
                 onClick={() => setProfileMenuOpen(prev => !prev)}
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors overflow-hidden"
                 aria-label="Open user menu"
               >
-                {getUserDisplayName()}
+                {user.user_metadata?.avatar_url ? (
+                  <img 
+                    src={user.user_metadata.avatar_url} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  getUserDisplayName()
+                )}
               </button>
             </div>
             {isProfileMenuOpen && (

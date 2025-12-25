@@ -85,7 +85,7 @@ Please provide a brief, educational explanation (2-3 sentences) of why the corre
 `;
 
         try {
-          const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
           const result = await model.generateContent(prompt);
           feedback =
             result.response

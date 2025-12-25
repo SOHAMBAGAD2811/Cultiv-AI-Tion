@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslation } from 'react-i18next';
 import { Play, Filter, Search, Clock, HelpCircle, Loader2 } from 'lucide-react';
+import { User } from '@supabase/supabase-js';
+import { createClient } from '../utils/supabase';
 
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
@@ -215,6 +217,8 @@ const allLearningPaths: LearningPath[] = [
 
 export default function LearningPathPage() {
   const { t } = useTranslation();
+  const [supabase] = useState(() => createClient());
+  const [user, setUser] = useState<User | null>(null);
   const [isSidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('learning');
 
@@ -232,6 +236,16 @@ export default function LearningPathPage() {
     videoTitle: string;
     questions: QuizQuestion[];
   } | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+      }
+    };
+    getUser();
+  }, [supabase]);
 
   const categories = useMemo(() => [
     'all', 'irrigation', 'soil_health', 'pest_control', 'fertilizers', 'techniques', 'harvesting'
@@ -328,7 +342,7 @@ export default function LearningPathPage() {
       />
 
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
-        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="learning_path_title" />
+        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title="learning_path_title" user={user} />
         <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {/* Page Header */}
             <div className="mb-6">
