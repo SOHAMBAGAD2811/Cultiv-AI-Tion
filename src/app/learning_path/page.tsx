@@ -1,12 +1,21 @@
 "use client";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslation } from 'react-i18next';
-import { Play, Filter, Search, Clock } from 'lucide-react';
+import { Play, Filter, Search, Clock, HelpCircle, Loader2 } from 'lucide-react';
 
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import QuizModal from '../../components/QuizModal';
 
 import '../i18n';
+import quizzesData from './quizzes.json';
+
+interface QuizQuestion {
+  id: number;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
 
 interface LearningPath {
   title: string;
@@ -215,6 +224,15 @@ export default function LearningPathPage() {
   const [isFilterOpen, setFilterOpen] = useState<boolean>(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
+  // --- State for quiz modal ---
+  const [isQuizOpen, setQuizOpen] = useState<boolean>(false);
+  const [loadingQuizId, setLoadingQuizId] = useState<string | null>(null);
+  const [selectedVideoForQuiz, setSelectedVideoForQuiz] = useState<{
+    videoId: string;
+    videoTitle: string;
+    questions: QuizQuestion[];
+  } | null>(null);
+
   const categories = useMemo(() => [
     'all', 'irrigation', 'soil_health', 'pest_control', 'fertilizers', 'techniques', 'harvesting'
   ], []);
@@ -235,6 +253,51 @@ export default function LearningPathPage() {
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     setFilterOpen(false);
+  };
+
+  // --- Quiz handler ---
+  const handleOpenQuiz = (videoId: string, videoTitle: string) => {
+    setLoadingQuizId(videoId);
+    setTimeout(() => {
+      const quizForVideo = quizzesData.quizzes.find((q: any) => q.videoId === videoId);
+      if (quizForVideo) {
+        setSelectedVideoForQuiz({
+          videoId,
+          videoTitle,
+          questions: quizForVideo.questions,
+        });
+        setQuizOpen(true);
+      }
+      setLoadingQuizId(null);
+    }, 500);
+  };
+
+  const handleSubmitQuiz = async (userAnswers: number[]) => {
+    if (!selectedVideoForQuiz) return;
+
+    try {
+      const response = await fetch("/api/evaluate-quiz", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          videoTitle: selectedVideoForQuiz.videoTitle,
+          questions: selectedVideoForQuiz.questions,
+          userAnswers,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to evaluate quiz");
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      throw error;
+    }
   };
 
   // --- Filtering Logic ---
@@ -315,40 +378,70 @@ export default function LearningPathPage() {
             <section>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                 {filteredLearningPaths.map((video, index) => (
-                    <a
-                        key={index} 
-                        href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <div
+                        key={index}
                         className="flex flex-col rounded-lg overflow-hidden shadow-md group cursor-pointer hover:shadow-xl transition-shadow bg-white"
                     >
-                        <div className="relative">
-                            <img
-                                src={`https://i.ytimg.com/vi/${video.youtubeVideoId}/sddefault.jpg`}
-                                alt={video.title}
-                                className="w-full h-40 object-cover transform group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="bg-green-500 p-4 rounded-full shadow-lg">
-                                    <Play className="w-6 h-6 text-white fill-white" />
+                        <a
+                            href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 flex flex-col"
+                        >
+                            <div className="relative">
+                                <img
+                                    src={`https://i.ytimg.com/vi/${video.youtubeVideoId}/sddefault.jpg`}
+                                    alt={video.title}
+                                    className="w-full h-40 object-cover transform group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="bg-green-500 p-4 rounded-full shadow-lg">
+                                        <Play className="w-6 h-6 text-white fill-white" />
+                                    </div>
+                                </div>
+                                <div className="absolute top-2 left-2 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{video.duration}</span>
                                 </div>
                             </div>
-                            <div className="absolute top-2 left-2 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                <span>{video.duration}</span>
+                            <div className="p-4 flex-grow flex flex-col">
+                                <span className="text-green-600 text-xs font-semibold uppercase">{t(video.category)}</span>
+                                <h4 className="text-gray-900 font-bold text-base mt-1 leading-tight">
+                                    {video.title}
+                                </h4>
                             </div>
+                        </a>
+                        <div className="px-4 pb-4">
+                            <button
+                                onClick={() => handleOpenQuiz(video.youtubeVideoId, video.title)}
+                                disabled={loadingQuizId === video.youtubeVideoId}
+                                className={`w-full flex items-center justify-center gap-2 bg-green-400 hover:bg-green-500 text-white font-semibold py-1 px-4 rounded-lg shadow-sm transition ${loadingQuizId === video.youtubeVideoId ? 'opacity-75 cursor-not-allowed' : 'hover:scale-105'}`}
+                            >
+                                {loadingQuizId === video.youtubeVideoId ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <HelpCircle className="w-4 h-4" />
+                                )}
+                                <span>{loadingQuizId === video.youtubeVideoId ? 'Opening...' : 'Quiz'}</span>
+                            </button>
                         </div>
-                        <div className="p-4 flex-grow flex flex-col">
-                            <span className="text-green-600 text-xs font-semibold uppercase">{t(video.category)}</span>
-                            <h4 className="text-gray-900 font-bold text-base mt-1 leading-tight flex-grow">
-                                {video.title}
-                            </h4>
-                        </div>
-                    </a>
+                    </div>
                 ))}
                 </div>
             </section>
+
+            {/* Quiz Modal */}
+            {selectedVideoForQuiz && (
+                <QuizModal
+                    isOpen={isQuizOpen}
+                    onClose={() => setQuizOpen(false)}
+                    videoId={selectedVideoForQuiz.videoId}
+                    videoTitle={selectedVideoForQuiz.videoTitle}
+                    questions={selectedVideoForQuiz.questions}
+                    onSubmitQuiz={handleSubmitQuiz}
+                />
+            )}
         </div>
       </main>
     </div>
