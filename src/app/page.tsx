@@ -220,14 +220,6 @@ export default function LandingPage() {
                 <Button onClick={() => scrollToSection('about')} className="border-2 border-[#2E7D32] text-[#2E7D32] hover:bg-[#2E7D32]/10 bg-white/60 backdrop-blur-sm shadow-lg rounded-full px-8 py-6 text-base">Learn More</Button>
               </motion.div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: heroTitleAnimationTime + 1.5, duration: 0.8 }} className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              {([{ value: '50K+', label: 'Active Farmers' }, { value: '98%', label: 'Success Rate' }, { value: '2M+', label: 'Acres Managed' }] as Stat[]).map((stat, index) => (
-                <motion.div key={stat.label} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: heroTitleAnimationTime + 1.7 + index * 0.1 }} className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/50">
-                  <div className="text-4xl text-[#F9A825] mb-2">{stat.value}</div>
-                  <div className="text-gray-600">{stat.label}</div>
-                </motion.div>
-              ))}
-            </motion.div>
           </div>
         </section>
 
@@ -276,103 +268,6 @@ export default function LandingPage() {
                 <div className="relative rounded-3xl overflow-hidden shadow-2xl">
                   <ImageWithFallback src={FIELD_IMG} alt="Agricultural Fields" fill style={{objectFit:"cover"}} className="!relative w-full h-[500px]" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#2E7D32]/60 to-transparent" />
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= TESTIMONIALS ================= */}
-        <section className="relative py-24 bg-gradient-to-b from-white to-[#F0F8F5] overflow-hidden">
-          <div className="container mx-auto px-6">
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="text-center mb-16">
-              <h2 className="font-['Poppins'] text-4xl md:text-5xl text-[#2E7D32] mb-4">What Farmers Say</h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">Real stories from farmers who transformed their operations with Cultiv-AI-Tion</p>
-            </motion.div>
-            <div className="relative max-w-5xl mx-auto">
-              {testimonials.map((testimonial, index) => (
-                <motion.div key={testimonial.name} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: index === activeIndex ? 1 : 0, scale: index === activeIndex ? 1 : 0.9, display: index === activeIndex ? 'block' : 'none' }} transition={{ duration: 0.5 }} className="relative">
-                  <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-8 md:p-12 shadow-2xl border border-white/50">
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }} className="w-16 h-16 bg-gradient-to-br from-[#F9A825] to-[#F57F17] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-                      <Quote className="w-8 h-8 text-white" />
-                    </motion.div>
-                    <div className="flex gap-1 mb-6">
-                      {[...Array(testimonial.rating)].map((_, i) => (<Star key={i} className="w-5 h-5 fill-[#F9A825] text-[#F9A825]" />))}
-                    </div>
-                    <p className="text-xl text-gray-700 mb-8 leading-relaxed italic">&ldquo;{testimonial.text}&rdquo;</p>
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-[#2E7D32]/20">
-                        <ImageWithFallback src={testimonial.image} alt={testimonial.name} fill style={{objectFit:"cover"}} />
-                      </div>
-                      <div>
-                        <h4 className="text-[#2E7D32]">{testimonial.name}</h4>
-                        <p className="text-sm text-gray-600">{testimonial.role}</p>
-                        <p className="text-sm text-gray-500">{testimonial.location}</p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-              <div className="flex justify-center gap-3 mt-8">
-                {testimonials.map((_, index) => (<button key={index} onClick={() => setActiveIndex(index)} className={`transition-all duration-300 rounded-full ${index === activeIndex ? 'w-12 h-3 bg-gradient-to-r from-[#2E7D32] to-[#F9A825]' : 'w-3 h-3 bg-gray-300 hover:bg-gray-400'}`} />))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= CONTACT ================= */}
-        <section id="contact" className="relative py-24 bg-gradient-to-b from-[#F0F8F5] to-white overflow-hidden">
-          <div className="container mx-auto px-6">
-            <div className="grid lg:grid-cols-2 gap-16 items-start">
-              <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}>
-                <h2 className="font-['Poppins'] text-4xl md:text-5xl text-[#2E7D32] mb-4">Get In Touch</h2>
-                <p className="text-xl text-gray-600 mb-8">Have questions? We are here to help you transform your farming experience.</p>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-                      <label className="block text-[#2E7D32] mb-2">First Name</label>
-                      <Input placeholder="John" className="bg-white/80 backdrop-blur-sm border-[#2E7D32]/20 focus:border-[#2E7D32] rounded-xl" />
-                    </motion.div>
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
-                      <label className="block text-[#2E7D32] mb-2">Last Name</label>
-                      <Input placeholder="Doe" className="bg-white/80 backdrop-blur-sm border-[#2E7D32]/20 focus:border-[#2E7D32] rounded-xl" />
-                    </motion.div>
-                  </div>
-                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
-                    <label className="block text-[#2E7D32] mb-2">Email</label>
-                    <Input type="email" placeholder="john@example.com" className="bg-white/80 backdrop-blur-sm border-[#2E7D32]/20 focus:border-[#2E7D32] rounded-xl" />
-                  </motion.div>
-                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}>
-                    <label className="block text-[#2E7D32] mb-2">Phone</label>
-                    <Input type="tel" placeholder="+1 (234) 567-890" className="bg-white/80 backdrop-blur-sm border-[#2E7D32]/20 focus:border-[#2E7D32] rounded-xl" />
-                  </motion.div>
-                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.5 }}>
-                    <label className="block text-[#2E7D32] mb-2">Message</label>
-                    <Textarea placeholder="Tell us about your farm and how we can help..." rows={6} className="bg-white/80 backdrop-blur-sm border-[#2E7D32]/20 focus:border-[#2E7D32] rounded-xl resize-none" />
-                  </motion.div>
-                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.6 }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button type="submit" className="w-full bg-gradient-to-r from-[#2E7D32] to-[#F9A825] hover:from-[#1B5E20] hover:to-[#F57F17] text-white shadow-xl hover:shadow-2xl transition-all duration-300 rounded-xl py-6 group">
-                      Send Message <Send className="ml-2 w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                    </Button>
-                  </motion.div>
-                </form>
-              </motion.div>
-              <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }} className="space-y-8">
-                <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/50">
-                  <h3 className="font-['Poppins'] text-2xl text-[#2E7D32] mb-6">Contact Information</h3>
-                  <div className="space-y-6">
-                    {([{ icon: Mail, title: 'Email', value: 'hello@cultivaition.com', href: 'mailto:hello@cultivaition.com' }, { icon: Phone, title: 'Phone', value: '+1 (234) 567-890', href: 'tel:+1234567890' }, { icon: MapPin, title: 'Address', value: 'Global Agricultural Hub, Worldwide Service', href: '#' }] as ContactInfo[]).map((item, index) => (
-                      <motion.a key={item.title} href={item.href} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }} whileHover={{ x: 5 }} className="flex items-start gap-4 group">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#2E7D32] to-[#F9A825] flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow flex-shrink-0">
-                          <item.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="text-[#2E7D32] mb-1">{item.title}</h4>
-                          <p className="text-gray-600">{item.value}</p>
-                        </div>
-                      </motion.a>
-                    ))}
-                  </div>
                 </div>
               </motion.div>
             </div>
