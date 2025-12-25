@@ -120,14 +120,13 @@ Keep the response practical, specific to farming, and actionable.`;
             : "good"
           : "critical",
     });
-  } finally {
-    console.log('[api/analytics-insights] Request handled in', Date.now() - start, 'ms');
-  }
   } catch (error) {
     console.error("Error generating insights:", error);
     return NextResponse.json(
       { error: "Failed to generate insights" },
       { status: 500 }
     );
+  } finally {
+    console.log('[api/analytics-insights] Request handled in', Date.now() - start, 'ms');
   }
 }
