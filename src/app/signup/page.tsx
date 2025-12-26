@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '../utils/supabase';
-import { Loader2, Mail, Lock, User, Globe, Camera, AlertCircle, Eye, EyeOff, MapPin } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Globe, Camera, AlertCircle, Eye, EyeOff, MapPin, Image, X } from 'lucide-react';
 
 export default function SignupPage() {
   const [supabase] = useState(() => createClient());
@@ -22,10 +22,59 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = async (file: File): Promise<File> => {
+    if (!file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = document.createElement('img');
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_SIZE = 800;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            if (blob) resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+            else resolve(file);
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = () => resolve(file);
+      };
+      reader.onerror = () => resolve(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+      let file = e.target.files[0];
+      try {
+        file = await compressImage(file);
+      } catch (error) {
+        console.error('Compression error:', error);
+      }
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
@@ -116,6 +165,49 @@ export default function SignupPage() {
     }
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream;
+      setIsCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Could not access camera. Please check permissions.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(videoRef.current, 0, 0);
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          let file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
+          file = await compressImage(file);
+          setAvatarFile(file);
+          setAvatarPreview(URL.createObjectURL(file));
+          stopCamera();
+        }
+      }, 'image/jpeg', 0.8);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md overflow-hidden">
@@ -144,11 +236,18 @@ export default function SignupPage() {
                   </div>
                 )}
               </div>
-              <label className="cursor-pointer flex items-center gap-2 text-sm text-green-600 font-medium hover:text-green-700">
-                <Camera className="w-4 h-4" />
-                <span>{avatarPreview ? 'Change Photo' : 'Add Photo'}</span>
-                <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-              </label>
+              <div className="flex gap-3 mt-1">
+                <button type="button" onClick={() => galleryInputRef.current?.click()} className="cursor-pointer flex items-center gap-2 text-sm text-green-600 font-medium hover:text-green-700 bg-green-50 px-3 py-1.5 rounded-md transition-colors">
+                  <Image className="w-4 h-4" />
+                  <span>Gallery</span>
+                </button>
+                <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleFileChange} className="absolute opacity-0 w-0 h-0" />
+                
+                <button type="button" onClick={startCamera} className="cursor-pointer flex items-center gap-2 text-sm text-green-600 font-medium hover:text-green-700 bg-green-50 px-3 py-1.5 rounded-md transition-colors">
+                  <Camera className="w-4 h-4" />
+                  <span>Camera</span>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -227,6 +326,21 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg overflow-hidden shadow-xl max-w-md w-full">
+            <div className="relative bg-black aspect-video flex items-center justify-center">
+              <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            </div>
+            <div className="p-4 flex justify-between items-center">
+              <button type="button" onClick={stopCamera} className="text-red-600 font-medium flex items-center gap-1"><X className="w-4 h-4" /> Cancel</button>
+              <button type="button" onClick={capturePhoto} className="bg-green-600 text-white px-4 py-2 rounded-full flex items-center gap-2 hover:bg-green-700"><Camera className="w-4 h-4" /> Capture</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
