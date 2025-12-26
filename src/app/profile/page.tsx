@@ -23,6 +23,7 @@ export default function ProfilePage() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -85,6 +86,42 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/signin');
+  };
+
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const data = await response.json();
+          const city = data.city || data.locality || data.principalSubdivision;
+          if (city) setLocation(city);
+        } catch (error) {
+          console.error('Error getting location name', error);
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (error) => {
+        console.error('Error getting location:', error.message);
+        setIsLocating(false);
+        let errorMessage = 'Unable to retrieve your location';
+        if (error.code === 1) errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
+        else if (error.code === 2) errorMessage = 'Location information is unavailable.';
+        else if (error.code === 3) errorMessage = 'Location request timed out.';
+        alert(errorMessage);
+      },
+      { timeout: 10000 }
+    );
   };
 
   if (loading) {
@@ -173,9 +210,17 @@ export default function ProfilePage() {
                       type="text" 
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900 sm:text-sm"
+                      className="pl-10 pr-24 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900 sm:text-sm"
                       placeholder="Enter your location for weather updates"
                     />
+                    <button
+                      type="button"
+                      onClick={handleCurrentLocation}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-green-600 hover:text-green-800"
+                      disabled={isLocating}
+                    >
+                      {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="text-xs font-medium">Use Current</span>}
+                    </button>
                   </div>
                 </div>
 

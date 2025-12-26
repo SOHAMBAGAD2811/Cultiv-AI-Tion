@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '../utils/supabase';
-import { Loader2, Mail, Lock, User, Globe, Camera, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Globe, Camera, AlertCircle, Eye, EyeOff, MapPin } from 'lucide-react';
 
 export default function SignupPage() {
   const [supabase] = useState(() => createClient());
@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [location, setLocation] = useState('');
   const [language, setLanguage] = useState('en');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -20,6 +21,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -27,6 +29,42 @@ export default function SignupPage() {
       setAvatarFile(file);
       setAvatarPreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const data = await response.json();
+          const city = data.city || data.locality || data.principalSubdivision;
+          if (city) setLocation(city);
+        } catch (error) {
+          console.error('Error getting location name', error);
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (error) => {
+        console.error('Error getting location:', error.message);
+        setIsLocating(false);
+        let errorMessage = 'Unable to retrieve your location';
+        if (error.code === 1) errorMessage = 'Location permission denied. Please allow location access in your browser address bar.';
+        else if (error.code === 2) errorMessage = 'Location information is unavailable.';
+        else if (error.code === 3) errorMessage = 'Location request timed out.';
+        alert(errorMessage);
+      },
+      { timeout: 10000 }
+    );
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -43,6 +81,7 @@ export default function SignupPage() {
           data: {
             full_name: fullName,
             language,
+            location,
           },
         },
       });
@@ -69,7 +108,7 @@ export default function SignupPage() {
         }
       }
 
-      router.push('/learning_path');
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -139,6 +178,28 @@ export default function SignupPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location (City/Region)</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input 
+                  type="text" 
+                  value={location} 
+                  onChange={(e) => setLocation(e.target.value)} 
+                  className="w-full pl-10 pr-24 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900" 
+                  placeholder="Enter your location" 
+                />
+                <button
+                  type="button"
+                  onClick={handleCurrentLocation}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-green-600 hover:text-green-800"
+                  disabled={isLocating}
+                >
+                  {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="text-xs font-medium">Use Current</span>}
                 </button>
               </div>
             </div>
