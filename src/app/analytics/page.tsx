@@ -741,9 +741,9 @@ export default function AnalyticsPage() {
                   <YAxis tickFormatter={(value) => `₹${Number(value).toLocaleString('en-IN')}`} />
                   <Tooltip formatter={(value: any) => `₹${Number(value).toLocaleString('en-IN')}`} />
                   <Legend />
-                  <Line type="monotone" dataKey="Revenue" stroke="#16a34a" strokeWidth={2} activeDot={{ r: 8 }} />
+                  <Line type="monotone" dataKey="Revenue" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 8 }} />
                   <Line type="monotone" dataKey="Expenses" stroke="#dc2626" strokeWidth={2} />
-                  <Line type="monotone" dataKey="Profit" stroke="#3b82f6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="Profit" stroke="#16a34a" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -859,10 +859,10 @@ export default function AnalyticsPage() {
             </section>
 
             {/* Sales Log */}
-            <section className="bg-white p-4 md:p-5 rounded-lg shadow-md space-y-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-gray-200">
+            <section className="bg-white p-6 rounded-lg shadow-md space-y-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Log a Sale</h3>
               {/* Log sale form */}
-              <form onSubmit={handleLogSale} className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-end">
+              <form onSubmit={handleLogSale} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
                 <select
                   value={newSale.cropId}
                   onChange={(e) => {
@@ -870,7 +870,7 @@ export default function AnalyticsPage() {
                     const crop = inventory.find(c => c.id === cropId);
                     setNewSale({ ...newSale, cropId, unit: crop ? crop.unit : 'tons' });
                   }}
-                  className={`col-span-1 sm:col-span-2 border-gray-300 rounded-md shadow-sm p-2 ${!newSale.cropId ? 'text-gray-500' : 'text-gray-900'}`}
+                  className={`col-span-1 sm:col-span-6 border-gray-300 rounded-md shadow-sm p-2 ${!newSale.cropId ? 'text-gray-500' : 'text-gray-900'}`}
                 >
                   <option value="">Select Crop</option>
                   {inventory.map(item => (
@@ -878,16 +878,22 @@ export default function AnalyticsPage() {
                   ))}
                 </select>
                 <input
+                  type="date"
+                  value={newSale.date}
+                  onChange={(e) => setNewSale({ ...newSale, date: e.target.value })}
+                  className="col-span-1 sm:col-span-6 border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
+                />
+                <input
                   type="number"
                   placeholder="Quantity Sold"
                   value={newSale.quantity}
                   onChange={(e) => setNewSale({ ...newSale, quantity: e.target.value })}
-                  className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
+                  className="col-span-1 sm:col-span-3 border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
                 />
                 <select
                   value={newSale.unit}
                   onChange={(e) => setNewSale({ ...newSale, unit: e.target.value })}
-                  className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900"
+                  className="col-span-1 sm:col-span-3 border-gray-300 rounded-md shadow-sm p-2 text-gray-900"
                 >
                   <option value="tons">Tons</option>
                   <option value="kg">Kg</option>
@@ -899,17 +905,11 @@ export default function AnalyticsPage() {
                   placeholder="Price / unit"
                   value={newSale.price}
                   onChange={(e) => setNewSale({ ...newSale, price: e.target.value })}
-                  className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
-                />
-                <input
-                  type="date"
-                  value={newSale.date}
-                  onChange={(e) => setNewSale({ ...newSale, date: e.target.value })}
-                  className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
+                  className="col-span-1 sm:col-span-3 border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
                 />
                 <button
                   type="submit"
-                  className="col-span-1 sm:col-span-6 bg-green-600 text-white rounded-md p-2 flex items-center justify-center gap-2 hover:bg-green-700">
+                  className="col-span-1 sm:col-span-3 bg-green-600 text-white rounded-md p-2 flex items-center justify-center gap-2 hover:bg-green-700">
                   <Plus className="w-4 h-4" /> Log
                 </button>
               </form>
