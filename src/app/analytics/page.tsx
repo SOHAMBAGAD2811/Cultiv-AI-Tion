@@ -26,6 +26,7 @@ interface SaleRecord {
   id: string;
   crop: string;
   quantity: number;
+  unit: string;
   pricePerUnit: number;
   totalSale: number;
   date: string;
@@ -71,7 +72,7 @@ export default function AnalyticsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState({ crop: '', quantity: 0, unit: '' });
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
-  const [editSaleFormData, setEditSaleFormData] = useState({ crop: '', quantity: 0, price: 0, date: '' });
+  const [editSaleFormData, setEditSaleFormData] = useState({ crop: '', quantity: 0, unit: '', price: 0, date: '' });
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editExpenseFormData, setEditExpenseFormData] = useState({ category: '', amount: 0, date: '' });
 
@@ -86,7 +87,7 @@ export default function AnalyticsPage() {
 
   // --- State for new entries ---
   const [newCrop, setNewCrop] = useState({ name: '', quantity: '', unit: 'tons', date: today });
-  const [newSale, setNewSale] = useState({ cropId: '', quantity: '', price: '', date: today });
+  const [newSale, setNewSale] = useState({ cropId: '', quantity: '', unit: '', price: '', date: today });
   const [newExpense, setNewExpense] = useState({ category: 'Fertilizer', amount: '', date: today });
 
   const getFilePath = (userId: string) => `${userId}.json`;
@@ -198,26 +199,34 @@ export default function AnalyticsPage() {
     if (selectedCrop && newSale.quantity && newSale.price) {
       const saleQuantity = parseFloat(newSale.quantity);
       const pricePerUnit = parseFloat(newSale.price);
+      const saleUnit = newSale.unit || selectedCrop.unit;
 
       // Add to sales record
       const saleRecord: SaleRecord = {
         id: `sale${Date.now()}`,
         crop: selectedCrop.crop,
         quantity: saleQuantity,
+        unit: saleUnit,
         pricePerUnit: pricePerUnit,
         totalSale: saleQuantity * pricePerUnit,
         date: newSale.date,
       };
       setSales([...sales, saleRecord]);
 
+      // Calculate deduction based on unit conversion
+      let deductionQuantity = saleQuantity;
+      if (saleUnit === 'kg' && selectedCrop.unit === 'tons') deductionQuantity = saleQuantity / 1000;
+      else if (saleUnit === 'tons' && selectedCrop.unit === 'kg') deductionQuantity = saleQuantity * 1000;
+      // For other combinations, assume 1:1 or incompatible (deduct as is)
+
       // Update inventory
       setInventory(inventory.map(item =>
         item.id === newSale.cropId
-          ? { ...item, quantity: item.quantity - saleQuantity }
+          ? { ...item, quantity: Math.max(0, item.quantity - deductionQuantity) }
           : item
       ));
 
-      setNewSale({ cropId: '', quantity: '', price: '', date: today }); // Reset form
+      setNewSale({ cropId: '', quantity: '', unit: '', price: '', date: today }); // Reset form
     }
   };
 
@@ -274,7 +283,7 @@ export default function AnalyticsPage() {
 
   const startEditingSale = (sale: SaleRecord) => {
     setEditingSaleId(sale.id);
-    setEditSaleFormData({ crop: sale.crop, quantity: sale.quantity, price: sale.pricePerUnit, date: sale.date });
+    setEditSaleFormData({ crop: sale.crop, quantity: sale.quantity, unit: sale.unit || 'tons', price: sale.pricePerUnit, date: sale.date });
   };
 
   const cancelEditingSale = () => {
@@ -289,6 +298,7 @@ export default function AnalyticsPage() {
             ...item, 
             crop: editSaleFormData.crop,
             quantity: editSaleFormData.quantity, 
+            unit: editSaleFormData.unit,
             pricePerUnit: editSaleFormData.price,
             totalSale: editSaleFormData.quantity * editSaleFormData.price,
             date: editSaleFormData.date
@@ -743,7 +753,7 @@ export default function AnalyticsPage() {
             <section className="bg-white p-4 md:p-5 rounded-lg shadow-md space-y-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Crop Inventory</h3>
               {/* Add new crop form */}
-              <form onSubmit={handleAddCrop} className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+              <form onSubmit={handleAddCrop} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
                 <input
                   type="text"
                   placeholder="Crop Name"
@@ -758,15 +768,25 @@ export default function AnalyticsPage() {
                   onChange={(e) => setNewCrop({ ...newCrop, quantity: e.target.value })}
                   className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
                 />
+                <select
+                  value={newCrop.unit}
+                  onChange={(e) => setNewCrop({ ...newCrop, unit: e.target.value })}
+                  className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900"
+                >
+                  <option value="tons">Tons</option>
+                  <option value="kg">Kg</option>
+                  <option value="dozen">Dozen</option>
+                  <option value="liter">Liter</option>
+                </select>
                 <input
                   type="date"
                   value={newCrop.date}
                   onChange={(e) => setNewCrop({ ...newCrop, date: e.target.value })}
-                  className="col-span-2 sm:col-span-1 border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
+                  className="col-span-1 border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
                 />
                 <button
                   type="submit"
-                  className="col-span-1 sm:col-span-2 bg-green-600 text-white rounded-md p-2 flex items-center justify-center gap-2 hover:bg-green-700"
+                  className="col-span-1 sm:col-span-4 bg-green-600 text-white rounded-md p-2 flex items-center justify-center gap-2 hover:bg-green-700"
                 >
                   <Plus className="w-4 h-4" /> Add
                 </button>
@@ -805,7 +825,16 @@ export default function AnalyticsPage() {
                                 onChange={e => setEditFormData({...editFormData, quantity: parseFloat(e.target.value) || 0})}
                                 className="w-20 border rounded px-1 py-0.5"
                               />
-                              <span className="text-xs text-gray-500">{item.unit}</span>
+                              <select
+                                value={editFormData.unit}
+                                onChange={e => setEditFormData({...editFormData, unit: e.target.value})}
+                                className="border rounded px-1 py-0.5 text-xs"
+                              >
+                                <option value="tons">Tons</option>
+                                <option value="kg">Kg</option>
+                                <option value="dozen">Dozen</option>
+                                <option value="liter">Liter</option>
+                              </select>
                             </div>
                           ) : `${item.quantity.toLocaleString()} ${item.unit}`}
                         </td>
@@ -833,11 +862,15 @@ export default function AnalyticsPage() {
             <section className="bg-white p-4 md:p-5 rounded-lg shadow-md space-y-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Log a Sale</h3>
               {/* Log sale form */}
-              <form onSubmit={handleLogSale} className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
+              <form onSubmit={handleLogSale} className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-end">
                 <select
                   value={newSale.cropId}
-                  onChange={(e) => setNewSale({ ...newSale, cropId: e.target.value })}
-                  className={`col-span-2 sm:col-span-1 border-gray-300 rounded-md shadow-sm p-2 ${!newSale.cropId ? 'text-gray-500' : 'text-gray-900'}`}
+                  onChange={(e) => {
+                    const cropId = e.target.value;
+                    const crop = inventory.find(c => c.id === cropId);
+                    setNewSale({ ...newSale, cropId, unit: crop ? crop.unit : 'tons' });
+                  }}
+                  className={`col-span-1 sm:col-span-2 border-gray-300 rounded-md shadow-sm p-2 ${!newSale.cropId ? 'text-gray-500' : 'text-gray-900'}`}
                 >
                   <option value="">Select Crop</option>
                   {inventory.map(item => (
@@ -851,6 +884,16 @@ export default function AnalyticsPage() {
                   onChange={(e) => setNewSale({ ...newSale, quantity: e.target.value })}
                   className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900 placeholder:text-gray-500"
                 />
+                <select
+                  value={newSale.unit}
+                  onChange={(e) => setNewSale({ ...newSale, unit: e.target.value })}
+                  className="border-gray-300 rounded-md shadow-sm p-2 text-gray-900"
+                >
+                  <option value="tons">Tons</option>
+                  <option value="kg">Kg</option>
+                  <option value="dozen">Dozen</option>
+                  <option value="liter">Liter</option>
+                </select>
                 <input
                   type="number"
                   placeholder="Price / unit"
@@ -866,7 +909,7 @@ export default function AnalyticsPage() {
                 />
                 <button
                   type="submit"
-                  className="bg-green-600 text-white rounded-md p-2 flex items-center justify-center gap-2 hover:bg-green-700">
+                  className="col-span-1 sm:col-span-6 bg-green-600 text-white rounded-md p-2 flex items-center justify-center gap-2 hover:bg-green-700">
                   <Plus className="w-4 h-4" /> Log
                 </button>
               </form>
@@ -877,6 +920,7 @@ export default function AnalyticsPage() {
                     <tr>
                       <th scope="col" className="px-4 py-2">Crop</th>
                       <th scope="col" className="px-4 py-2">Date</th>
+                      <th scope="col" className="px-4 py-2 text-right">Quantity</th>
                       <th scope="col" className="px-4 py-2 text-right">Total Sale</th>
                       <th scope="col" className="px-4 py-2">Actions</th>
                     </tr>
@@ -904,24 +948,37 @@ export default function AnalyticsPage() {
                             />
                           ) : sale.date}
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-green-700">
+                        <td className="px-4 py-2 text-right text-gray-600">
                           {editingSaleId === sale.id ? (
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="flex justify-end gap-1">
                               <input 
                                 type="number" 
-                                placeholder="Qty"
                                 value={editSaleFormData.quantity} 
                                 onChange={e => setEditSaleFormData({...editSaleFormData, quantity: parseFloat(e.target.value) || 0})}
-                                className="w-20 border rounded px-1 py-0.5 text-right"
+                                className="w-16 border rounded px-1 py-0.5 text-right"
                               />
-                              <input 
-                                type="number" 
-                                placeholder="Price"
-                                value={editSaleFormData.price} 
-                                onChange={e => setEditSaleFormData({...editSaleFormData, price: parseFloat(e.target.value) || 0})}
-                                className="w-20 border rounded px-1 py-0.5 text-right"
-                              />
+                              <select
+                                value={editSaleFormData.unit}
+                                onChange={e => setEditSaleFormData({...editSaleFormData, unit: e.target.value})}
+                                className="w-16 border rounded px-1 py-0.5 text-xs"
+                              >
+                                <option value="tons">Tons</option>
+                                <option value="kg">Kg</option>
+                                <option value="dozen">Dozen</option>
+                                <option value="liter">Liter</option>
+                              </select>
                             </div>
+                          ) : `${sale.quantity} ${sale.unit || 'tons'}`}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-green-700">
+                          {editingSaleId === sale.id ? (
+                            <input 
+                              type="number" 
+                              placeholder="Price"
+                              value={editSaleFormData.price} 
+                              onChange={e => setEditSaleFormData({...editSaleFormData, price: parseFloat(e.target.value) || 0})}
+                              className="w-20 border rounded px-1 py-0.5 text-right"
+                            />
                           ) : `₹${sale.totalSale.toLocaleString('en-IN')}`}
                         </td>
                         <td className="px-4 py-2">
