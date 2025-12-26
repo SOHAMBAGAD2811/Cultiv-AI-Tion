@@ -22,6 +22,7 @@ interface AnalyticsInsightRequest {
   expensesCount: number;
   topCrops?: string[];
   topExpenseCategories?: string[];
+  location?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -47,15 +48,17 @@ export async function POST(request: NextRequest) {
       expensesCount,
       topCrops,
       topExpenseCategories,
+      location,
     } = body;
 
     // Create a detailed prompt for Gemini
-    const prompt = `You are an agricultural business analyst. Based on the following farm analytics data, provide:
+    const prompt = `You are an agricultural business analyst. Based on the following farm analytics data${location ? ` for a farm located in ${location}` : ""}, provide:
 1. A brief summary (2-3 sentences) of the current farm business status
-2. 3-4 specific actionable recommendations to improve profitability
+2. 3-4 specific actionable recommendations to improve profitability${location ? `, including specific crop suggestions and harvesting techniques suitable for the ${location} region` : ""}
 3. Any potential issues or concerns to address
 
 Analytics Data:
+${location ? `- Location: ${location}` : ""}
 - Total Revenue: ₹${totalRevenue.toLocaleString("en-IN")}
 - Total Expenses: ₹${totalExpenses.toLocaleString("en-IN")}
 - Net Profit: ₹${netProfit.toLocaleString("en-IN")}
@@ -83,7 +86,7 @@ RECOMMENDATIONS:
 CONCERNS:
 [Any potential issues or areas of concern]
 
-Keep the response practical, specific to farming, and actionable.`;
+Keep the response practical, specific to farming, and actionable. Do not use markdown formatting (like **bold**) in the output.`;
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
@@ -96,17 +99,17 @@ Keep the response practical, specific to farming, and actionable.`;
     );
     const concernsMatch = responseText.match(/CONCERNS:\s*\n([\s\S]*?)$/);
 
-    const summary = summaryMatch ? summaryMatch[1].trim() : "";
+    const summary = summaryMatch ? summaryMatch[1].trim().replace(/\*\*/g, '') : "";
     const recommendationsText = recommendationsMatch
       ? recommendationsMatch[1].trim()
       : "";
-    const concerns = concernsMatch ? concernsMatch[1].trim() : "";
+    const concerns = concernsMatch ? concernsMatch[1].trim().replace(/\*\*/g, '') : "";
 
     // Parse recommendations into array
     const recommendations = recommendationsText
       .split("\n")
       .filter((line) => line.trim().length > 0)
-      .map((line) => line.replace(/^\d+\.\s*/, "").trim());
+      .map((line) => line.replace(/^\d+\.\s*/, "").replace(/\*\*/g, "").trim());
 
     return NextResponse.json({
       summary,

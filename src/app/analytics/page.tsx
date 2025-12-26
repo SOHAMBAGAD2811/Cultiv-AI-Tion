@@ -425,7 +425,8 @@ export default function AnalyticsPage() {
         expensesCount: expenses.length,
         topCrops,
         topExpenseCategories,
-      });
+        location: user?.user_metadata?.location,
+      } as any);
 
       setAiInsights(insights);
     } catch (err) {
@@ -434,7 +435,7 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoadingInsights(false);
     }
-  }, [inventory, sales, expenses, totalRevenue, totalExpenses, netProfit]);
+  }, [inventory, sales, expenses, totalRevenue, totalExpenses, netProfit, user]);
 
   const getGroupKey = (date: string, range: string) => {
     if (range === 'this_month' || range === 'last_month') {
