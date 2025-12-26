@@ -85,7 +85,7 @@ export default function CultivAIApp() {
     const fetchWeather = async () => {
       setLoading(true);
       try {
-        const userLocation = (user?.user_metadata?.farm_location as string) || 'Pune';
+        const userLocation = (user?.user_metadata?.location as string) || 'Pune';
         const response = await fetch(`/api/weather?location=${encodeURIComponent(userLocation)}`);
         if (!response.ok) throw new Error('Failed to fetch weather');
         const data = await response.json();
@@ -230,6 +230,7 @@ export default function CultivAIApp() {
           isOpen={isSidebarOpen}
           title="sidebar_home"
           setSidebarOpen={setSidebarOpen}
+          user={user}
         />
 
         <div className="flex-1 p-4 md:p-6 overflow-y-auto">

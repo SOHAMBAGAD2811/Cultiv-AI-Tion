@@ -62,13 +62,17 @@ export default function ProfilePage() {
     if (!user) return;
     setIsSaving(true);
 
-    const { error } = await supabase.auth.updateUser({
+    const { data, error } = await supabase.auth.updateUser({
       data: { 
         full_name: fullName,
         location,
         language
       }
     });
+
+    if (!error && data.user) {
+      setUser(data.user);
+    }
 
     if (!error && language !== i18n.language) {
       i18n.changeLanguage(language);
@@ -137,7 +141,7 @@ export default function ProfilePage() {
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
-        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title={t('profile_settings')} user={user} />
+        <Header isOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} title={t('profile_settings', 'Profile Settings')} user={user} />
         
         <div className="flex-1 p-4 md:p-6">
           <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">

@@ -88,12 +88,12 @@ export default function Header({ isOpen, setSidebarOpen, title, user: propUser }
   // --- Fetch Weather Data on user login ---
   useEffect(() => {
     async function fetchWeather() {
-      if (!user || weatherData) return; // Fetch only if user is logged in and weather not fetched
+      if (!user) return; // Fetch only if user is logged in
 
       setWeatherLoading(true);
       try {
         // Get user's location from their profile, with a fallback.
-        const userLocation = user.user_metadata?.farm_location as string || 'Pune';
+        const userLocation = user.user_metadata?.location as string || 'Pune';
         const response = await fetch(`/api/weather?location=${encodeURIComponent(userLocation)}`);
         if (!response.ok) {
           throw new Error('Failed to fetch weather');
@@ -108,7 +108,7 @@ export default function Header({ isOpen, setSidebarOpen, title, user: propUser }
       }
     }
     fetchWeather();
-  }, [user, weatherData]); // Rerun when user logs in
+  }, [user ? `${user.id}-${user.user_metadata?.location}` : '']); // Rerun when user updates
 
   // --- Close pop-up when clicking outside ---
   useEffect(() => { function handleClickOutside(event: MouseEvent) {
