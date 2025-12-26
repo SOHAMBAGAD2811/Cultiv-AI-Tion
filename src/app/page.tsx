@@ -145,7 +145,6 @@ export default function LandingPage() {
     { name: 'Home', id: 'home' },
     { name: 'Features', id: 'features' },
     { name: 'About', id: 'about' },
-    { name: 'Contact', id: 'contact' },
   ];
 
   const heroTitleText: string = "Cultiv-AI-Tion";
